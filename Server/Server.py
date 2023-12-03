@@ -6,10 +6,12 @@ import sys
 
 
 def send_file(connectionSocket, filename):
+    print('SENDING FILE')
     print(filename)
     try:
         file = open(filename, 'rb')
         file_data = file.read()
+        print(file_data)
         connectionSocket.sendall(file_data)
         print('File was sent') 
     except IOError:
@@ -17,7 +19,8 @@ def send_file(connectionSocket, filename):
         print('File not found')
 
 def handle_command(connectionSocket, command_input):
-    split_command = command_input.strip().split()
+    decoded = command_input.decode()
+    split_command = decoded.strip().split()
     command = split_command[0]
 
     if command == '/get':
@@ -34,18 +37,23 @@ def handle_command(connectionSocket, command_input):
     
 def handle_client(connectionSocket, addr):
     print('Server: New client connected.')
-    while True:
-        try:
-            command = connectionSocket.recv(1024)
-            if not command:
-                break
-            handle_command(connectionSocket, command)
-            
+    try:
+        while True:
+            print('Waiting for Command')
+            try:
+                command = connectionSocket.recv(1024)
+                print(command)
+                if not command:
+                    break
+                handle_command(connectionSocket, command)
 
-        except IOError:
-            pass
-    
-    connectionSocket.close()
+            except IOError:
+                pass
+
+    except IOError:
+        print('errpr')
+    finally:
+        connectionSocket.close()
 
 def main():
     serverSocket = socket(AF_INET, SOCK_STREAM)

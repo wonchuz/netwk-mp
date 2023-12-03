@@ -13,26 +13,31 @@ def printCommands():
     print('\n\n')
 
 def get(clientSocket, filename):
-    clientSocket.sendall(f'/get {filename}'.encode())
+    msg = '/get ' + filename
+    clientSocket.sendall(msg.encode())
 
     try:
         file = open(filename, 'wb')
         error_msg = 'Error: File not found in the server.'
         not_found = False
-        buffer = b''
 
         while True:
             file_data = clientSocket.recv(1024)
+            print(file_data)
             if not file_data:
                 break
             
-            buffer += file_data
-            if file_data == error_msg.encode():
+            elif file_data == error_msg.encode():
                 not_found = True
                 break
 
             file.write(file_data)
+            print('Writing')
+
+            if len(file_data) < 1024:
+                break
         
+        print('Closing file')
         file.close()
         if not_found:
             print(error_msg)
