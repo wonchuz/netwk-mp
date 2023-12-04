@@ -47,6 +47,7 @@ def get(clientSocket, filename):
 def store(clientSocket, filename):
     try:
         file = open(filename, 'rb')
+        clientSocket.sendall(('/store ' + filename).encode())
         file_data = file.read()
         clientSocket.sendall(file_data)
     except IOError:
@@ -59,6 +60,7 @@ def main():
         split_command = command_input.strip().split()
         input_length = len(split_command)
         command =  split_command[0]
+        print(command_input)
 
         not_found_msg = 'Error: Command not found'
         not_match_allowed = 'Error: Command parameters do not match or is not allowed.'
@@ -123,8 +125,7 @@ def main():
             # /store
             elif command == '/store':
                 if input_length == 2:
-                    # TODO 
-                    pass
+                    store(clientSocket, split_command[1])
                 else:
                     print(not_match_allowed)
 
@@ -132,7 +133,7 @@ def main():
             elif command == '/dir':
                 if input_length == 1:
                     # TODO 
-                    get()
+                    pass
                 else:
                     print(not_match_allowed)
 

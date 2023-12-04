@@ -6,39 +6,56 @@ import sys
 
 
 def send_file(connectionSocket, filename):
-    print('SENDING FILE')
-    print(filename)
     try:
         file = open(filename, 'rb')
         file_data = file.read()
-        print(file_data)
         connectionSocket.sendall(file_data)
-        print('File was sent') 
     except IOError:
         connectionSocket.send('Error: File not found in the server.'.encode())
         print('File not found')
+
+def store_file(connectionSocket, filename):
+    try:
+        file = open(filename, 'wb')
+
+        while True:
+            file_data = connectionSocket.recv(1024)
+
+            if not file_data:
+                break
+
+            file.write(file_data)
+
+            if len(file_data) < 1024:
+                break
+
+        file.close()
+        # TODO
+        # User1<2023-11-06 16:48:05>: Uploaded Hello.txt
+        # must send to all users connected?
+        print('File stored.')
+    except IOError:
+        print('Error: Failed to store file.') # TODO: Print in Server or Client?
+
+def send_to_all_clients(msg, clients):
+    for client_socket in clients:
+        client_socket.send(msg.encode())
+    pass
+            
 
 def handle_command(connectionSocket, command_input):
     decoded = command_input.decode()
     split_command = decoded.strip().split()
     command = split_command[0]
 
+    # Send file to client
     if command == '/get':
         send_file(connectionSocket, split_command[1])
 
-    # Send file to server
+    # Store file to server
     elif command == '/store':
-        # TODO
-        try:
-            file_data = connectionSocket.recv(1024)
-            with open(filename, 'wb') as file:
-                while file_data:
-                    file.write(file_data)
-                    file_data = connectionSocket.recv(1024)
-            print(f"File {filename} received and stored.")
-        except Exception as e:
-            print(f"Error receiving file: {e}")
-            
+        store_file(connectionSocket, split_command[1])
+
     elif command == '/register':
         # TODO
         pass
@@ -62,18 +79,18 @@ def handle_client(connectionSocket, addr):
                 pass
 
     except IOError:
-        print('errpr')
+        print('Error')
     finally:
         connectionSocket.close()
 
 def main():
     serverSocket = socket(AF_INET, SOCK_STREAM)
-    serverPort = 9999
+    serverPort = 12345
     serverSocket.bind(('127.0.0.1', serverPort))
     serverSocket.listen()
     
     clients = []
-    clients_lock = threading.Lock()
+    clients_lock = threading.Lock() #idk what this does tbh
     
     while True:
         connectionSocket, addr = serverSocket.accept()
