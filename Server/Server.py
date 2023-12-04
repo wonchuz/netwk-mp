@@ -25,9 +25,20 @@ def handle_command(connectionSocket, command_input):
 
     if command == '/get':
         send_file(connectionSocket, split_command[1])
+
+    # Send file to server
     elif command == '/store':
         # TODO
-        pass
+        try:
+            file_data = connectionSocket.recv(1024)
+            with open(filename, 'wb') as file:
+                while file_data:
+                    file.write(file_data)
+                    file_data = connectionSocket.recv(1024)
+            print(f"File {filename} received and stored.")
+        except Exception as e:
+            print(f"Error receiving file: {e}")
+            
     elif command == '/register':
         # TODO
         pass
