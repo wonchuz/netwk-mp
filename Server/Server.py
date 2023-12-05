@@ -1,13 +1,13 @@
-#Server
+# S16 Jocson & Rebano
+# Server File
 from socket import *
+import os
 import threading
 import sys
 from datetime import datetime
-import os
-import pickle
 
 clients = {}
-clients_lock = threading.Lock() #idk what this does tbh
+clients_lock = threading.Lock()
 
 def send_file(connectionSocket, filename):
     try:
@@ -24,61 +24,74 @@ def store_file(connectionSocket, filename):
 
         while True:
             file_data = connectionSocket.recv(1024)
-
             if not file_data:
                 break
-
             file.write(file_data)
-
             if len(file_data) < 1024:
                 break
-
         file.close()
         
         with clients_lock:
             user = clients[connectionSocket]
-            # Get the current date and time
             current_datetime = datetime.now()
-            # Format the date and time as a string
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-            send_to_all_clients(user + '<' + formatted_datetime + '>: Uploaded ' + filename)
+            broadcast_msg('[Message] ' + user + '<' + formatted_datetime + '>: Uploaded ' + filename)
 
         print('File stored.')
     except IOError:
-        print('Error: Failed to store file.') # TODO: Print in Server or Client?
+        print('Error: Failed to store file.')
 
-def send_to_all_clients(msg):
+def broadcast_msg(msg):
     for client_socket in clients.keys():
-        client_socket.sendall(msg.encode())
+        try:
+            client_socket.sendall(msg.encode())
+        except IOError:
+            print('Failed to send message to client.')
+                
+def register_user(connectionSocket, user):
+    with clients_lock:
+        if user in clients.values():
+            connectionSocket.sendall('Error: Registration Failed. Handle or alias already exists'.encode())
+        else:
+            clients[connectionSocket] = user
+            broadcast_msg('[Message] ' + 'Welcome ' + user + '!')
+
+def get_directory_list():
+    current_directory = os.getcwd()
+    return os.listdir(current_directory)
+
+def req_dir(connectionSocket):
+    try:
+        file_list = get_directory_list()
+        serialized_file_list = pickle.dumps(file_list)
+        connectionSocket.sendall(serialized_file_list)
+    except IOError:
+        print('Error: Failed to send directory list.')
 
 def handle_command(connectionSocket, command_input):
     decoded = command_input.decode()
     split_command = decoded.strip().split()
     command = split_command[0]
 
-    # Send file to client
     if command == '/get':
         send_file(connectionSocket, split_command[1])
-
-    # Store file to server
     elif command == '/store':
         store_file(connectionSocket, split_command[1])
-
     elif command == '/register':
         register_user(connectionSocket, split_command[1])
-    
     elif command == '/dir':
-        # TODO
-        pass
+        req_dir(connectionSocket)
+    elif command == '/leave':
+        user = clients[connectionSocket]
+        del clients[connectionSocket]
+        broadcast_msg('[Message] ' + user + ' disconnected.')
     
 def handle_client(connectionSocket, addr):
-    print('Server: New client connected.')
+    print('New client connected.')
     try:
         while True:
-            print('Waiting for Command')
             try:
                 command = connectionSocket.recv(1024)
-                print(command)
                 if not command:
                     break
                 handle_command(connectionSocket, command)
@@ -100,8 +113,8 @@ def main():
     while True:
         connectionSocket, addr = serverSocket.accept()
         clients_thread = threading.Thread(target=handle_client, args=(connectionSocket, addr))
-        print(clients_thread)
         clients_thread.start()
+        
     
     serverSocket.close()
     sys.exit()
