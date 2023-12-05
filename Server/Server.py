@@ -11,26 +11,26 @@ clients_lock = threading.Lock()
 
 def send_file(connectionSocket, filename):
     try:
-        file = open(filename, 'rb')
-        file_data = file.read()
-        connectionSocket.sendall(file_data)
+        with open(filename, 'rb') as file:
+            file_data = file.read()
+            connectionSocket.sendall(file_data)
+            print('File sent')
     except IOError:
         connectionSocket.sendall('Error: File not found in the server.'.encode())
         print('File not found')
 
 def store_file(connectionSocket, filename):
     try:
-        file = open(filename, 'wb')
-
-        while True:
-            file_data = connectionSocket.recv(1024)
-            if not file_data:
-                break
-            file.write(file_data)
-            if len(file_data) < 1024:
-                break
-        file.close()
-        
+        with open(filename, 'wb') as file:
+            while True:
+                file_data = connectionSocket.recv(1024)
+                if not file_data:
+                    break
+                file.write(file_data)
+                if len(file_data) < 1024:
+                    break
+            file.close()
+            
         with clients_lock:
             user = clients[connectionSocket]
             current_datetime = datetime.now()
@@ -45,6 +45,7 @@ def broadcast_msg(msg):
     for client_socket in clients.keys():
         try:
             client_socket.sendall(msg.encode())
+            print('Broadcasted message')
         except IOError:
             print('Failed to send message to client.')
                 
@@ -55,18 +56,21 @@ def register_user(connectionSocket, user):
         else:
             clients[connectionSocket] = user
             broadcast_msg('[Message] ' + 'Welcome ' + user + '!')
+            print(user + ' registered!')
 
-def get_directory_list():
-    current_directory = os.getcwd()
-    return os.listdir(current_directory)
-
-def req_dir(connectionSocket):
+def send_directory(connectionSocket):
     try:
-        file_list = get_directory_list()
-        serialized_file_list = pickle.dumps(file_list)
-        connectionSocket.sendall(serialized_file_list)
-    except IOError:
-        print('Error: Failed to send directory list.')
+        files = os.listdir('.')
+        connectionSocket.sendall('[Message] Server Directory')
+        if files:
+            for file in files:
+                if file != 'Server.py':
+                    connectionSocket.sendall(('[Message] ' + file).encode())
+        else:
+            connectionSocket.sendall('[Message] Empty'.encode())
+    except:
+        print('Error: Current folder not found.')
+        return []
 
 def handle_command(connectionSocket, command_input):
     decoded = command_input.decode()
@@ -80,7 +84,7 @@ def handle_command(connectionSocket, command_input):
     elif command == '/register':
         register_user(connectionSocket, split_command[1])
     elif command == '/dir':
-        req_dir(connectionSocket)
+        send_directory(connectionSocket)
     elif command == '/leave':
         user = clients[connectionSocket]
         del clients[connectionSocket]

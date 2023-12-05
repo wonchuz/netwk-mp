@@ -2,19 +2,17 @@
 # Client File
 from socket import *
 import threading
-import pickle
-import select
 
 # prints messages received from the server
 def receive_messages(clientSocket):
     while True:
         try:
-            message = clientSocket.recv(1024).decode('utf-8') # receive msg
+            message = clientSocket.recv(1024).decode() # receive msg
             # prints all received messages except for file content
             if message.startswith("Error:"):
                 print(message)
-            elif message.startswith('[Message]'):
-                print(message[9:])
+            elif message.startswith('[Message] '):
+                print(message[10:])
         except IOError:
             print('Error: Failed to receive message from the server.')
 
@@ -32,87 +30,35 @@ def printCommands():
 
 # gets a file from the server
 def get(clientSocket, filename):
+    clientSocket.sendall(('/get ' + filename).encode())
     try:
-        file = open(filename, 'wb')
-        not_found = False
-
-        while True:
-            file_data = clientSocket.recv(1024)     # received data
-            if not file_data:   # nothing left to receive
-                break
-            elif file_data == ('Error: File not found in the server.').encode():    # error received
-                not_found = True
-                break
-            file.write(file_data)   # write content on file
-
-            if len(file_data) < 1024:
-                break
-
-        file.close()
-
-        if not not_found:
-            print('File received from Server: ', filename)
+        with open(filename, 'wb') as file:
+            error_msg = 'Error: File not found in the server.'
+            not_found = False
+            while True:
+                file_data = clientSocket.recv(1024)
+                if not file_data:
+                    break
+                
+                elif file_data == error_msg.encode():
+                    not_found = True
+                    break
+                file.write(file_data)
+            file.close()
+            if not not_found:
+                print('File received from Server: ', filename)
     except IOError:
         print('Error: Unable to retrieve the file from the server')
 
 # send file to server
 def store(clientSocket, filename):
     try:
-        file = open(filename, 'rb')
-        file_data = file.read()
-        clientSocket.sendall(file_data) # send content to server
+        with open(filename, 'rb') as file:
+            file_data = file.read()
+            clientSocket.sendall(('/store ' + filename).encode())
+            clientSocket.sendall(file_data) # send content to server
     except IOError:
         print('Error: File not found.')
-        
-def receive_directory_list(clientSocket):
-    try:
-        file_list = b''
-        while True:
-            print('something1')
-            
-            # Check if there's data available for reading
-            ready_to_read, _, _ = select.select([clientSocket], [], [], 0.1)
-
-            if ready_to_read:
-                data_chunk = clientSocket.recv(4096)
-                if not data_chunk:
-                    break
-                file_list += data_chunk
-                print('something2')
-            else:
-                # No data available, do something else or break the loop
-                print('No data available')
-                break
-
-        if not file_list:
-            print('Error: No data received.')
-            return []
-        
-        print('something3')
-        return pickle.loads(file_list)
-    
-    except pickle.UnpicklingError:
-        print('Error: Failed to unpickle directory list.')
-        return []
-    except EOFError:
-        print('Error: Ran out of input while unpickling directory list.')
-        return []
-    except IOError:
-        print('Error: Failed to receive directory list from the server.')
-        return []
-
-def dir(clientSocket):
-    try:
-        clientSocket.sendall(('/dir').encode())
-        server_files = receive_directory_list(clientSocket)
-
-        print('test3')
-        for file in server_files:
-            print(file)
-
-        print('test4')
-    except IOError:
-        print('Error: Failed to get directory list from the server.')
 
 def main():
     connected = False   # not connected to server
@@ -179,7 +125,6 @@ def main():
         elif command == '/get':
             if connected and registered:
                 if input_length == 2:
-                    clientSocket.sendall(command_input.encode())
                     get(clientSocket, split_command[1])
                 else:
                     print(not_match_allowed)
@@ -190,7 +135,6 @@ def main():
         elif command == '/store':
             if connected and registered:
                 if input_length == 2:
-                    clientSocket.sendall(command_input.encode())
                     store(clientSocket, split_command[1])
                 else:
                     print(not_match_allowed)
@@ -201,7 +145,7 @@ def main():
         elif command == '/dir':
             if connected:
                 if input_length == 1:
-                    dir(clientSocket)
+                    clientSocket.sendall(('/dir').encode())
                 else:
                     print(not_match_allowed)
             else:
