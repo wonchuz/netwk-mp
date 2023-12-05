@@ -60,7 +60,6 @@ def main():
         split_command = command_input.strip().split()
         input_length = len(split_command)
         command =  split_command[0]
-        print(command_input)
 
         not_found_msg = 'Error: Command not found'
         not_match_allowed = 'Error: Command parameters do not match or is not allowed.'
@@ -118,7 +117,10 @@ def main():
             elif command == '/register':
                 if input_length == 2:
                     # TODO 
-                    pass
+                    print('Registering')
+
+                    clientSocket.sendall(('/register ' + split_command[1]).encode())
+                    print(clientSocket.recv(1024).decode())
                 else:
                     print(not_match_allowed)
 
@@ -133,7 +135,7 @@ def main():
             elif command == '/dir':
                 if input_length == 1:
                     # TODO 
-                    pass
+                    get()
                 else:
                     print(not_match_allowed)
 

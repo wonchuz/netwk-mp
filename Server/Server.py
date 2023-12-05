@@ -1,9 +1,11 @@
 #Server
 from socket import *
-import os
 import threading
 import sys
+from datetime import datetime
 
+clients = {}
+clients_lock = threading.Lock() #idk what this does tbh
 
 def send_file(connectionSocket, filename):
     try:
@@ -11,7 +13,7 @@ def send_file(connectionSocket, filename):
         file_data = file.read()
         connectionSocket.sendall(file_data)
     except IOError:
-        connectionSocket.send('Error: File not found in the server.'.encode())
+        connectionSocket.sendall('Error: File not found in the server.'.encode())
         print('File not found')
 
 def store_file(connectionSocket, filename):
@@ -30,18 +32,35 @@ def store_file(connectionSocket, filename):
                 break
 
         file.close()
-        # TODO
-        # User1<2023-11-06 16:48:05>: Uploaded Hello.txt
-        # must send to all users connected?
+        
+        with clients_lock:
+            user = clients[connectionSocket]
+            # Get the current date and time
+            current_datetime = datetime.now()
+            # Format the date and time as a string
+            formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+            send_to_all_clients(user + '<' + formatted_datetime + '>: Uploaded ' + filename)
+
         print('File stored.')
     except IOError:
         print('Error: Failed to store file.') # TODO: Print in Server or Client?
 
-def send_to_all_clients(msg, clients):
-    for client_socket in clients:
-        client_socket.send(msg.encode())
-    pass
-            
+def send_to_all_clients(msg):
+    #with clients_lock:
+    for client_socket in clients.keys():
+        client_socket.sendall(msg.encode())
+                
+def register_user(connectionSocket, user):
+    with clients_lock:
+
+        if connectionSocket in clients.keys():
+            connectionSocket.sendall(('Error: Registration Failed. You already registered.').encode())
+        else:
+            if user in clients.values():
+                connectionSocket.sendall('Error: Registration Failed. Handle or alias already exists'.encode())
+            else:
+                clients[connectionSocket] = user
+                connectionSocket.sendall(('Welcome ' + user).encode()) #TODO: Send to all clients
 
 def handle_command(connectionSocket, command_input):
     decoded = command_input.decode()
@@ -57,8 +76,8 @@ def handle_command(connectionSocket, command_input):
         store_file(connectionSocket, split_command[1])
 
     elif command == '/register':
-        # TODO
-        pass
+        register_user(connectionSocket, split_command[1])
+    
     elif command == '/dir':
         # TODO
         pass
@@ -89,13 +108,11 @@ def main():
     serverSocket.bind(('127.0.0.1', serverPort))
     serverSocket.listen()
     
-    clients = []
-    clients_lock = threading.Lock() #idk what this does tbh
-    
     while True:
         connectionSocket, addr = serverSocket.accept()
-        clients = threading.Thread(target=handle_client, args=(connectionSocket, addr))
-        clients.start()
+        clients_thread = threading.Thread(target=handle_client, args=(connectionSocket, addr))
+        print(clients_thread)
+        clients_thread.start()
     
     serverSocket.close()
     sys.exit()
