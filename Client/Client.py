@@ -9,7 +9,7 @@ import select
 def receive_messages(clientSocket):
     while True:
         try:
-            message = clientSocket.recv(1024).decode() # receive msg
+            message = clientSocket.recv(1024).decode('utf-8') # receive msg
             # prints all received messages except for file content
             if message.startswith("Error:"):
                 print(message)
