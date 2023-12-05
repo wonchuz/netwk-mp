@@ -110,14 +110,16 @@ def main():
     serverSocket.bind(('127.0.0.1', serverPort))
     serverSocket.listen()
     
-    while True:
-        connectionSocket, addr = serverSocket.accept()
-        clients_thread = threading.Thread(target=handle_client, args=(connectionSocket, addr))
-        clients_thread.start()
-        
-    
-    serverSocket.close()
-    sys.exit()
+    try:
+        while True:
+            connectionSocket, addr = serverSocket.accept()
+            clients_thread = threading.Thread(target=handle_client, args=(connectionSocket, addr))
+            clients_thread.start()
+    except IOError:
+        print("Server shutting down...")
+        serverSocket.close()
+        sys.exit()
+
 
 if __name__ == "__main__":
     main()
