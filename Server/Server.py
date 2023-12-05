@@ -3,6 +3,8 @@ from socket import *
 import threading
 import sys
 from datetime import datetime
+import os
+import pickle
 
 clients = {}
 clients_lock = threading.Lock() #idk what this does tbh
@@ -40,7 +42,6 @@ def store_file(connectionSocket, filename):
         print('Error: Failed to store file.') # TODO: Print in Server or Client?
 
 def send_to_all_clients(msg):
-    #with clients_lock:
     for client_socket in clients.keys():
         client_socket.sendall(msg.encode())
                 
@@ -54,6 +55,18 @@ def register_user(connectionSocket, user):
             else:
                 clients[connectionSocket] = user
                 connectionSocket.sendall(('Welcome ' + user).encode()) #TODO: Send to all clients
+
+def get_directory_list():
+    current_directory = os.getcwd()
+    return os.listdir(current_directory)
+
+def req_dir(connectionSocket):
+    try:
+        file_list = get_directory_list()
+        serialized_file_list = pickle.dumps(file_list)
+        connectionSocket.sendall(serialized_file_list)
+    except IOError:
+        print('Error: Failed to send directory list.')
 
 def handle_command(connectionSocket, command_input):
     decoded = command_input.decode()
@@ -72,8 +85,7 @@ def handle_command(connectionSocket, command_input):
         register_user(connectionSocket, split_command[1])
     
     elif command == '/dir':
-        # TODO
-        pass
+        req_dir(connectionSocket)
 
     elif command == '/leave':
         user = clients[connectionSocket]
