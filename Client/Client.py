@@ -159,7 +159,6 @@ def main():
             elif command == '/leave':
                 if input_length == 1:
                     connected = False
-                    clientSocket.sendall(('/leave').encode())
                     clientSocket.close()
                     print('Connection closed. Thank you!')
                     break
@@ -169,6 +168,9 @@ def main():
             # /register
             elif command == '/register':
                 if input_length == 2:
+                    # TODO 
+                    print('Registering')
+
                     clientSocket.sendall(('/register ' + split_command[1]).encode())
                     print(clientSocket.recv(1024).decode())
                 else:
