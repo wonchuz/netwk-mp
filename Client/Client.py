@@ -55,56 +55,6 @@ def store(clientSocket, filename):
     except IOError:
         print('Error: File not found.')
 
-def receive_directory_list(clientSocket):
-    try:
-        file_list = b''
-        while True:
-            print('something1')
-            
-            # Check if there's data available for reading
-            ready_to_read, _, _ = select.select([clientSocket], [], [], 0.1)
-
-            if ready_to_read:
-                data_chunk = clientSocket.recv(4096)
-                if not data_chunk:
-                    break
-                file_list += data_chunk
-                print('something2')
-            else:
-                # No data available, do something else or break the loop
-                print('No data available')
-                break
-
-        if not file_list:
-            print('Error: No data received.')
-            return []
-        
-        print('something3')
-        return pickle.loads(file_list)
-    
-    except pickle.UnpicklingError:
-        print('Error: Failed to unpickle directory list.')
-        return []
-    except EOFError:
-        print('Error: Ran out of input while unpickling directory list.')
-        return []
-    except IOError:
-        print('Error: Failed to receive directory list from the server.')
-        return []
-
-def dir(clientSocket):
-    try:
-        clientSocket.sendall(('/dir').encode())
-        server_files = receive_directory_list(clientSocket)
-
-        print('test3')
-        for file in server_files:
-            print(file)
-
-        print('test4')
-    except IOError:
-        print('Error: Failed to get directory list from the server.')
-
 def main():
     connected = False
     while True:

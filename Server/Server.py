@@ -50,30 +50,6 @@ def store_file(connectionSocket, filename):
 def send_to_all_clients(msg):
     for client_socket in clients.keys():
         client_socket.sendall(msg.encode())
-                
-def register_user(connectionSocket, user):
-    with clients_lock:
-
-        if connectionSocket in clients.keys():
-            connectionSocket.sendall(('Error: Registration Failed. You already registered.').encode())
-        else:
-            if user in clients.values():
-                connectionSocket.sendall('Error: Registration Failed. Handle or alias already exists'.encode())
-            else:
-                clients[connectionSocket] = user
-                connectionSocket.sendall(('Welcome ' + user).encode()) #TODO: Send to all clients
-
-def get_directory_list():
-    current_directory = os.getcwd()
-    return os.listdir(current_directory)
-
-def req_dir(connectionSocket):
-    try:
-        file_list = get_directory_list()
-        serialized_file_list = pickle.dumps(file_list)
-        connectionSocket.sendall(serialized_file_list)
-    except IOError:
-        print('Error: Failed to send directory list.')
 
 def handle_command(connectionSocket, command_input):
     decoded = command_input.decode()
