@@ -2,6 +2,7 @@
 # Client File
 from socket import *
 import threading
+import os
 
 # prints messages received from the server
 def receive_messages(clientSocket):
@@ -44,9 +45,11 @@ def get(clientSocket, filename):
                     not_found = True
                     break
                 file.write(file_data)
-            file.close()
-            if not not_found:
-                print('File received from Server: ', filename)
+        file.close()
+        if not_found:
+            os.remove(filename)
+        else:
+            print('File received from Server: ', filename)
     except IOError:
         print('Error: Unable to retrieve the file from the server')
 
