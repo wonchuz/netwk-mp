@@ -22,22 +22,16 @@ def store_file(connectionSocket, filename):
 
         while True:
             file_data = connectionSocket.recv(1024)
-
             if not file_data:
                 break
-
             file.write(file_data)
-
             if len(file_data) < 1024:
                 break
-
         file.close()
         
         with clients_lock:
             user = clients[connectionSocket]
-            # Get the current date and time
             current_datetime = datetime.now()
-            # Format the date and time as a string
             formatted_datetime = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
             send_to_all_clients(user + '<' + formatted_datetime + '>: Uploaded ' + filename)
 
@@ -52,7 +46,6 @@ def send_to_all_clients(msg):
                 
 def register_user(connectionSocket, user):
     with clients_lock:
-
         if connectionSocket in clients.keys():
             connectionSocket.sendall(('Error: Registration Failed. You already registered.').encode())
         else:
@@ -81,12 +74,16 @@ def handle_command(connectionSocket, command_input):
     elif command == '/dir':
         # TODO
         pass
+
+    elif command == '/leave':
+        user = clients[connectionSocket]
+        del clients[connectionSocket]
+        send_to_all_clients(user + 'disconnected.')
     
 def handle_client(connectionSocket, addr):
     print('Server: New client connected.')
     try:
         while True:
-            print('Waiting for Command')
             try:
                 command = connectionSocket.recv(1024)
                 print(command)
@@ -111,7 +108,6 @@ def main():
     while True:
         connectionSocket, addr = serverSocket.accept()
         clients_thread = threading.Thread(target=handle_client, args=(connectionSocket, addr))
-        print(clients_thread)
         clients_thread.start()
     
     serverSocket.close()
