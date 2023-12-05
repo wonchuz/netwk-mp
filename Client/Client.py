@@ -4,20 +4,6 @@ from socket import *
 import threading
 import os
 
-# prints messages received from the server
-def receive_messages(clientSocket):
-    while True:
-        try:
-            message = clientSocket.recv(1024).decode() # receive msg
-            # prints all received messages except for file content
-            if message.startswith("Error:"):
-                print(message)
-            elif message.startswith('[Message] '):
-                print(message[10:])
-        except IOError:
-            print('Error: Failed to receive message from the server.')
-
-# prints commands
 def printCommands():
     print('Input Syntax commands:')
     print('/join <server_ip_add> <port>')
@@ -29,29 +15,19 @@ def printCommands():
     print('/?')
     print('\n\n')
 
-# gets a file from the server
-def get(clientSocket, filename):
-    clientSocket.sendall(('/get ' + filename).encode())
-    try:
-        with open(filename, 'wb') as file:
-            error_msg = 'Error: File not found in the server.'
-            not_found = False
-            while True:
-                file_data = clientSocket.recv(1024)
-                if not file_data:
-                    break
-                
-                elif file_data == error_msg.encode():
-                    not_found = True
-                    break
-                file.write(file_data)
-        file.close()
-        if not_found:
-            os.remove(filename)
-        else:
-            print('File received from Server: ', filename)
-    except IOError:
-        print('Error: Unable to retrieve the file from the server')
+# prints messages received from the server
+def receive_messages(clientSocket):
+    end_file = True
+    while True:
+        try:
+            message = clientSocket.recv(1024).decode() # receive msg
+            if message.endswith('found in server.'):
+                get(clientSocket, message.split()[0])
+            else: 
+                print(message)
+        except IOError:
+            print('Error: Failed to receive message from the server.')
+            break
 
 # send file to server
 def store(clientSocket, filename):
@@ -63,99 +39,130 @@ def store(clientSocket, filename):
     except IOError:
         print('Error: File not found.')
 
+def get(clientSocket, filename):
+    try:
+        with open(filename, 'wb') as file:
+            while True:
+                file_data = clientSocket.recv(1024)
+                if not file_data:
+                    break
+                file.write(file_data)
+                if len(file_data) < 1024:
+                    break
+        print('File saved.')
+    except IOError:
+        print('Error: Unable to retrieve the file from the server')
+
+
 def main():
     connected = False   # not connected to server
     registered = False  # not registered in server
     clientSocket = socket(AF_INET, SOCK_STREAM)
 
     while True:
-        command_input = input()
-        split_command = command_input.strip().split()
-        input_length = len(split_command)
-        command =  split_command[0]
+        try:
+            command_input = input()
+            split_command = command_input.strip().split()
+            input_length = len(split_command)
+            command =  split_command[0]
 
-        not_found_msg = 'Error: Command not found'
-        not_match_allowed = 'Error: Command parameters do not match or is not allowed.'
-        not_connected = 'Error: Please connect to the server first.'
+            # messages
+            not_found_msg = 'Error: Command not found'
+            not_match_allowed = 'Error: Command parameters do not match or is not allowed.'
+            not_connected = 'Error: Please connect to the server first.'
 
-        if command == '/join':
-            if connected:
+            # /join
+            if command == '/join':
                 if input_length == 3:
-                    print('Error: Connection failed. Please disconnect from the server first.')
+                    if connected:
+                        print('Error: Connection failed. Please disconnect from the server first.')
+                    # not connected
+                    else:
+                        try:
+                            clientSocket.connect((split_command[1], int(split_command[2])))
+                            receive_thread = threading.Thread(target=receive_messages, args=(clientSocket,))
+                            receive_thread.start()
+                            print('Connection to the File Exchange Server is successful!')
+                            connected = True
+                        except IOError:
+                            print('Error: Connection to the Server has failed! Please check IP Address and Port Number')      
                 else:
-                    print(not_match_allowed)
-    
-            else:
-                if input_length == 3:
-                    try:
-                        clientSocket.connect((split_command[1], int(split_command[2])))
-                        receive_thread = threading.Thread(target=receive_messages, args=(clientSocket,))
-                        receive_thread.start()
-                        print('Connection to the File Exchange Server is successful!')
-                        connected = True
-                    except IOError:
-                        print('Error: Connection to the Server has failed! Please check IP Address and Port Number')
-                else:
-                    print(not_match_allowed)
-        elif command == '/leave':
-            if input_length == 1:
-                if connected:
-                    connected = False
-                    clientSocket.sendall(('/leave').encode())
-                    clientSocket.close()
-                    print('Connection closed. Thank you!')
-                    break
-                else:
-                    print('Error: Disconnected failed. Please connect to the server first.')
-            else:
-                print(not_match_allowed)
-        elif command == '/?':
-            if input_length == 1:
-                    printCommands()
-            else:
-                print(not_match_allowed)
-        elif command == '/register':
-            if connected and not registered:
-                if input_length == 2:
-                    clientSocket.sendall(command_input.encode())
-                    registered = True
-                else:
-                    print(not_match_allowed)
-            elif connected and registered:
-                print('Error: Registration Failed. You already registered.')
-            else:
-                print(not_connected)
-        elif command == '/get':
-            if connected and registered:
-                if input_length == 2:
-                    get(clientSocket, split_command[1])
-                else:
-                    print(not_match_allowed)
-            elif connected and not registered:
-                print(not_match_allowed)
-            else:
-                print(not_connected)
-        elif command == '/store':
-            if connected and registered:
-                if input_length == 2:
-                    store(clientSocket, split_command[1])
-                else:
-                    print(not_match_allowed)
-            elif connected and not registered:
-                print(not_match_allowed)
-            else:
-                print(not_connected)
-        elif command == '/dir':
-            if connected:
+                    print(not_match_allowed) # invalid parameters
+
+            # /leave
+            elif command == '/leave':
                 if input_length == 1:
-                    clientSocket.sendall(('/dir').encode())
+                    if connected:
+                        connected = False
+                        clientSocket.sendall(('/leave').encode())
+                        if clientSocket.recv(1024).decode().startswith('Connection closed'):
+                            clientSocket.close()
+                        break
+                    else:
+                        print('Error: Disconnected failed. Please connect to the server first.')
                 else:
                     print(not_match_allowed)
+
+            # /register
+            elif command == '/register':
+                if input_length == 2:
+                    if connected and not registered:
+                        clientSocket.sendall(command_input.encode())
+                        if clientSocket.recv(10.24).decode().startswith('Welcome'):
+                            registered = True
+                    elif connected and registered:
+                        print('Error: Registration Failed. You already registered.')
+                    else:
+                        print(not_connected)
+                else:
+                    print(not_match_allowed)
+                    
+            # /store
+            elif command == '/store':
+                if input_length == 2:
+                    if connected and registered:
+                        store(clientSocket, split_command[1])
+                    elif connected and not registered:
+                        print(not_match_allowed)
+                    else:
+                        print(not_connected)
+                else:
+                    print(not_match_allowed)
+
+            # /dir
+            elif command == '/dir':
+                if input_length == 1:
+                    if connected and registered:
+                        clientSocket.sendall(('/dir').encode())
+                    elif connected and not registered:
+                        print(not_match_allowed)
+                    else:
+                        print(not_connected)
+                else:
+                    print(not_match_allowed) 
+
+            # /get
+            elif command == '/get':
+                if input_length == 2:
+                    if connected and registered:
+                        clientSocket.sendall(('/get ' + split_command[1]).encode())
+                    elif connected and not registered:
+                        print(not_match_allowed)
+                    else:
+                        print(not_connected)
+                else:
+                    print(not_match_allowed)
+
+            # /?
+            elif command == '/?':
+                printCommands()
+            
             else:
-                print(not_connected)
-        # none of the commands
-        else:
-            print(not_found_msg)
+                print(not_found_msg)
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     main()
