@@ -107,7 +107,7 @@ def main():
                 if input_length == 2:
                     if connected and not registered:
                         clientSocket.sendall(command_input.encode())
-                        if clientSocket.recv(10.24).decode().startswith('Welcome'):
+                        if clientSocket.recv(1024).decode().startswith('Welcome'):
                             registered = True
                     elif connected and registered:
                         print('Error: Registration Failed. You already registered.')
