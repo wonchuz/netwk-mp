@@ -17,7 +17,6 @@ def printCommands():
 
 # prints messages received from the server
 def receive_messages(clientSocket):
-    end_file = True
     while True:
         try:
             message = clientSocket.recv(1024).decode() # receive msg
@@ -155,7 +154,18 @@ def main():
 
             # /?
             elif command == '/?':
-                printCommands()
+                if input_length == 1:
+                    printCommands()
+                else:
+                    print(not_match_allowed)
+
+            elif command == '/broadcast':
+                if connected and registered:
+                    clientSocket.sendall('/broadcast ' + split_command[1:].encode())
+                elif connected and not registered:
+                    print(not_match_allowed)
+                else:
+                    print(not_connected)
             
             else:
                 print(not_found_msg)

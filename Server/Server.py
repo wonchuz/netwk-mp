@@ -112,7 +112,20 @@ def handle_command(connectionSocket, command_input):
     elif command == '/get':
         send_file(connectionSocket, split_command[1])
 
-    # /?
+    # /broadcast
+    elif command == '/broadcast':
+        try:
+            message = clients[connectionSocket] + split_command[1:]
+            broadcast_msg(message)
+        except IOError:
+            connectionSocket.sendall('Error: Failed to broadcast message.'.encode())
+    
+    # /msg
+    elif command == '/msg':
+        try:
+            pass
+        except IOError:
+            connectionSocket.sendall('Error: Failed to send message'.encode())
     
 
 def handle_client(connectionSocket, addr):
